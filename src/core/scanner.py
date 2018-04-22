@@ -160,5 +160,5 @@ def split_vor_edge(path='./tmp/112.png'):
 
 
 np.set_printoptions(threshold=np.nan)
-# split_hor_edge()
-split_vor_edge()
+split_hor_edge()
+# split_vor_edge()
