@@ -9,42 +9,20 @@ import os
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 def analysed(path):
     img = cv2.imread(path)
     imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     ret, thresh = cv2.threshold(imgray, 127, 255, cv2.THRESH_BINARY)
-    _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    height, width = thresh.shape
-    cv2.drawContours(img, contours, -1, (0, 0, 255))
-    count = 0
-    x_arr, y_arr = [], []
+    _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    # cv2.drawContours(img, contours, -1, (0, 0, 255))
+    rects = []
     for contour in contours:
-        x, y, z = contour.shape
-        tmp = contour.reshape(1, x * z)[0]
-        x_tmp = np.array([tmp[idx] for idx in range(len(tmp)) if idx % 2 == 0])
-        y_tmp = np.array([tmp[idx] for idx in range(len(tmp)) if idx % 2 != 0])
-        w = np.max(x_tmp) - np.min(x_tmp)
-        h = np.max(y_tmp) - np.min(y_tmp)
-        x_arr.append(x_tmp[0])
-        y_arr.append(y_tmp[0])
-        # print("X={}, Y={}, Width={}, Height={}".format(x_tmp[0], y_tmp[0], w, h))
-        # im = img[0:height, x_tmp[0]:x_tmp[0] + 18]
-        # cv2.imwrite('./tmp/rs/{}.png'.format(count), im)
-        # if width > 10 and height > 18:
-        #     im = img[y_tmp[0]:y_tmp[0] + height, x_tmp[0]:x_tmp[0] + width]
-        #     # cv2.rectangle(img, (x_tmp[0], y_tmp[0]), (x_tmp[0] + width, y_tmp[0] + height), (0, 0, 255), 2)
-        #     cv2.imwrite('./tmp/rs/{}.png'.format(count), im)
-        count += 1
-    # plt.bar(x_arr, y_arr, 1, color='r')
-    # plt.show()
-    x_arr, y_arr = list(set(x_arr)), list(set(y_arr))
-    x_arr.sort()
-    y_arr.sort()
-    cv2.imshow('img', img)
-    cv2.waitKey(0)
-    return x_arr, y_arr, img
+        x1, y1, w1, h1 = cv2.boundingRect(contour)
+        rects.append((x1, y1, w1, h1))
+    return rects, img
 
 
 def find(x_arr, h_max):
@@ -79,20 +57,18 @@ def show_img(img, rs, height):
 
 
 def main():
-    x_arr, y_arr, img = analysed('./tmp/240.png')
+    rects, img = analysed('./tmp/240.png')
     height, width, _ = img.shape
-    print("X:", x_arr)
-    print("MAX_H:", y_arr[-1])
-    rs = []
-    for idx in range(len(x_arr)):
-        if idx != len(x_arr) - 1:
-            rs.append(x_arr[idx+1] - x_arr[idx])
-
-    print(rs, sum(rs) // len(rs))
-    # for x in x_arr:
-    #     plt.scatter(x, 0, c='b', marker='|')
-    # show_img(img, find(x_arr, y_arr[-1]), height)
-    # cv2.imwrite('./tmp/rs/{}.png'.format(4), img[0:height, 136:155])
+    idx = 0
+    for rect in rects:
+        tmp_img = img[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
+        cv2.rectangle(img, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 3)
+        # cv2.imwrite('./tmp/rs/{}.png'.format(idx), tmp_img)
+        plt.scatter(rect[0], rect[1], c='b', marker='*')
+        idx += 1
+    plt.show()
+    cv2.imshow('Image', img)
+    cv2.waitKey(0)
 
 
 if __name__ == '__main__':
