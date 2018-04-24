@@ -9,19 +9,21 @@ import os
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+from matplotlib.collections import PatchCollection
+import matplotlib.patches as mpatches
 
 
 def analysed(path):
     img = cv2.imread(path)
     imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    ret, thresh = cv2.threshold(imgray, 127, 255, cv2.THRESH_BINARY)
-    _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    ret, thresh = cv2.threshold(imgray, 127, 255, cv2.THRESH_BINARY_INV)
+    _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     # cv2.drawContours(img, contours, -1, (0, 0, 255))
     rects = []
     for contour in contours:
         x1, y1, w1, h1 = cv2.boundingRect(contour)
         rects.append((x1, y1, w1, h1))
+    rects.sort()
     return rects, img
 
 
@@ -46,7 +48,7 @@ def find(x_arr, h_max):
     return rs
 
 
-def show_img(img, rs, height):
+def show(img, rs, height):
     fig, axes = plt.subplots(1, len(rs), figsize=(height, height))
     idx = 0
     for ax in axes.ravel():
@@ -56,17 +58,54 @@ def show_img(img, rs, height):
     plt.show()
 
 
-def main():
-    rects, img = analysed('./tmp/240.png')
-    height, width, _ = img.shape
+def show_rects(rects):
     idx = 0
+    fig, axis = plt.subplots()
+    boxes = []
     for rect in rects:
-        tmp_img = img[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
-        cv2.rectangle(img, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 3)
-        # cv2.imwrite('./tmp/rs/{}.png'.format(idx), tmp_img)
-        plt.scatter(rect[0], rect[1], c='b', marker='*')
+        if idx > 0:
+            box = mpatches.Rectangle(rect[0:2], rect[2], rect[3], ec='none')
+            boxes.append(box)
         idx += 1
+    pc = PatchCollection(boxes, facecolor='r', alpha=0.3, edgecolor='None')
+    axis.add_collection(pc)
+    axis.errorbar([x[0] for x in rects], [x[1] for x in rects], fmt='None', ecolor='b')
+    plt.tight_layout()
     plt.show()
+
+
+def what_rests(rects):
+    for rect in rects:
+        print(rect)
+
+
+def analyse(path):
+    img = cv2.imread(path)
+    imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    cv2.GaussianBlur(imgray, (3, 3), 0)
+    canny = cv2.Canny(imgray, 50, 150)
+    _, contours, hierarchy = cv2.findContours(canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    rects = []
+    for contour in contours:
+        x1, y1, w1, h1 = cv2.boundingRect(contour)
+        if w1 > 3:
+            rects.append((x1, y1, w1, h1))
+    rects.sort()
+
+    return rects, img
+
+
+def main():
+    rects, img = analyse('./tmp/504.png')
+    h, w, _ = img.shape
+    idx = 0
+    print(x[0] for x in rects)
+    for rect in rects:
+        tmp_img = img[0:h, rect[0]:rect[0] + rect[2]]
+        print(rect)
+        cv2.imwrite('./tmp/rs/{}.png'.format(idx), tmp_img)
+        cv2.rectangle(img, rect[0:2], (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 1)
+        idx += 1
     cv2.imshow('Image', img)
     cv2.waitKey(0)
 
