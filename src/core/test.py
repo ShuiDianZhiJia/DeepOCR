@@ -79,35 +79,80 @@ def what_rests(rects):
         print(rect)
 
 
+def split_vor(img):
+    cv2.imshow('f', img)
+    cv2.waitKey(0)
+    ver_edge = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]])
+    height, width = img.shape
+    x_axis, y_axis, x_span, y_span, num = 0, 0, 3, 3, 0
+    v_rs, v_row_rs = None, None
+    for h_idx in range(height - 2):
+        for w_idx in range(width - 2):
+            tmp_arr = img[h_idx:h_idx + y_span, w_idx:w_idx + x_span]
+            v_tmp = np.sum(ver_edge * tmp_arr)
+            if v_row_rs is None:
+                v_row_rs = v_tmp
+            else:
+                v_row_rs = np.hstack((v_row_rs, v_tmp))
+        if v_rs is None:
+            v_rs = v_row_rs
+        else:
+            v_rs = np.vstack((v_rs, v_row_rs))
+        v_row_rs = None
+    print(v_rs[4])
+    cv2.imshow('f', v_rs)
+    cv2.waitKey(0)
+    return v_rs
+
+
 def analyse(path):
-    img = cv2.imread(path)
-    imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    cv2.GaussianBlur(imgray, (3, 3), 0)
-    canny = cv2.Canny(imgray, 50, 150)
-    _, contours, hierarchy = cv2.findContours(canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    img = cv2.imread(path, 0)
+    ret, thresh = cv2.threshold(img, 155, 255, cv2.THRESH_BINARY)
+    imgray = cv2.GaussianBlur(thresh, (3, 3), 0)
+    imgray = cv2.Canny(imgray, 50, 150)
+    _, contours, hierarchy = cv2.findContours(imgray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     rects = []
     for contour in contours:
         x1, y1, w1, h1 = cv2.boundingRect(contour)
-        if w1 > 3:
-            rects.append((x1, y1, w1, h1))
+        rects.append([x1, y1, w1, h1])
     rects.sort()
+    return rects
 
-    return rects, img
+
+def select(rects):
+    rs_rects = []
+    begin = rects[0]
+    for idx in range(1, len(rects)):
+        cur = rects[idx]
+        if begin[0] + begin[2] <= cur[0]:
+            begin[1] = 0
+            begin[3] = 21
+            rs_rects.append(begin)
+            begin = cur
+        else:
+            dis = cur[0] + cur[2] - begin[0] - begin[2]
+            if dis > 0:
+                begin[2] += dis
+            if cur[3] > begin[3]:
+                begin[3] = cur[3]
+            if cur[1] < begin[1]:
+                begin[1] = cur[1]
+    return rs_rects
 
 
 def main():
-    rects, img = analyse('./tmp/504.png')
+    rects = select(analyse('./tmp/504.png'))
+    img = cv2.imread('./tmp/504.png')
     h, w, _ = img.shape
     idx = 0
-    print(x[0] for x in rects)
     for rect in rects:
         tmp_img = img[0:h, rect[0]:rect[0] + rect[2]]
-        print(rect)
         cv2.imwrite('./tmp/rs/{}.png'.format(idx), tmp_img)
-        cv2.rectangle(img, rect[0:2], (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 1)
         idx += 1
-    cv2.imshow('Image', img)
-    cv2.waitKey(0)
+        # t_im = np.copy(img)
+        # cv2.rectangle(t_im, tuple(rect[0:2]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 1)
+        # cv2.imshow('Image', t_im)
+        # cv2.waitKey(0)
 
 
 if __name__ == '__main__':
