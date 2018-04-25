@@ -22,6 +22,8 @@ from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import variable_scope
 import tensorflow.contrib.slim as slim
 
+IMAGE_SIZE = 48
+NUM_CHANNELS = 1
 
 trunc_normal = lambda stddev: init_ops.truncated_normal_initializer(0.0, stddev)
 
@@ -583,7 +585,7 @@ def inception_v3_arg_scope(weight_decay=0.00004,
             return sc
 
 
-def inference(images,weight_decay=0.0, reuse=None):
+def inference(images, weight_decay=0.0, reuse=None):
     batch_norm_params = {
         # Decay for the moving averages.
         'decay': 0.995,
@@ -600,3 +602,12 @@ def inference(images,weight_decay=0.0, reuse=None):
                         normalizer_fn=slim.batch_norm,
                         normalizer_params=batch_norm_params):
         return inception_v3(images, reuse=reuse)
+
+
+def triplet_loss(anchor, positive, negative, alpha):
+    with tf.variable_scope('triplet_loss'):
+        pos_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), 1)
+        neg_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, negative)), 1)
+        basic_loss = tf.add(tf.subtract(pos_dist, neg_dist), alpha)
+        loss = tf.reduce_mean(tf.maximum(basic_loss, 0.0), 0)
+    return loss

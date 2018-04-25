@@ -58,7 +58,7 @@ def inference(inputs, is_training, regularizer=None):
         if is_training:
             fc1 = tf.nn.dropout(fc1, keep_prob=0.5, name='drop1')
         # 批标准化
-        fc1 = tf.layers.batch_normalization(fc1, name='bn1')
+        # fc1 = tf.layers.batch_normalization(fc1, name='bn1')
     # 第六层全连接层
     with tf.variable_scope('layer6-fc2', reuse=tf.AUTO_REUSE):
         fc2_weight = tf.get_variable('weights', [FC_SIZE, NUM_CHANNELS],

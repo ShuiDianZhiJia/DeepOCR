@@ -156,4 +156,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    arr = np.array([[1, 2, 3],
+              [0, 1, 4],
+              [6, 5, 8]])
+    print(arr[1, :])

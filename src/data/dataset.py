@@ -20,18 +20,19 @@ SAMPLE_SIZE = 3
 
 def encode_img(path, tmp='./tmp'):
     img = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
-    # img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         print(path + " is None!")
         exit(0)
     img.astype(np.float32)
     img = cv2.resize(img, (48, 48))
-    local = path.split('\\')[-1]
-    local = os.path.join(tmp, local)
-    if not os.path.exists(tmp):
-        os.makedirs(tmp)
-    if cv2.imwrite(local, img):
-        return local
+    ret, thresh = cv2.threshold(img, 155, 255, cv2.THRESH_BINARY)
+    return thresh
+    # local = path.split('\\')[-1]
+    # local = os.path.join(tmp, local)
+    # if not os.path.exists(tmp):
+    #     os.makedirs(tmp)
+    # if cv2.imwrite(local, img):
+    #     return local
 
 
 class TextDataSet:
@@ -55,33 +56,33 @@ class TextDataSet:
 
     def next_batch(self, batch_size):
         dirs = self._next_batch(batch_size)
-        labels = []
-        imgs = []
+        imgs, paths, labels = [], [], []
         for d in dirs:
             label = d.split('\\')[-1]
             _, ims = list_files(d)
             if len(label) > 1:
                 label = label[0:1]
-            labels.append(label)
+            labels.extend(label * len(ims))
+            paths.extend(ims)
             imgs.append(ims)
-        datas = []
-        for d in range(len(imgs)):
-            label = labels[d]
-            tmp_dirs = imgs[0:]
-            tmp_dirs.remove(imgs[d])
-            dt = transform(imgs[d], tmp_dirs)
-            datas.append(dt)
-        return dirs, reduce(operator.add, datas), labels
+        # datas = []
+        # for d in range(len(imgs)):
+        #     tmp_dirs = imgs[0:]
+        #     tmp_dirs.remove(imgs[d])
+        #     dt = transform(imgs[d], tmp_dirs)
+        #     datas.append(dt)
+        # return dirs, reduce(operator.add, datas), labels
+        return imgs, paths, labels
 
 
 def load_data(paths):
     dts = []
-    for path in paths:
-        p = encode_img(path)
-        im = Image.open(p)
-        im = np.array(im).astype(np.float32)
-        im = (im % 255) % 2
-        dts.append(im)
+    if isinstance(paths, list):
+        for path in paths:
+            im = encode_img(path)
+            dts.append(im)
+    else:
+        return encode_img(paths)
     return dts
 
 
@@ -97,8 +98,10 @@ def transform(dirs, tmp_dirs):
     return rs
 
 
-# dataset = TextDataSet('./data')
-# dirs, labels = dataset.next_batch(9)
-# print(len(dirs))
-# tmp = reduce(operator.add, dirs)
-# print(len(tmp))
+def test():
+    dataset = TextDataSet('./data')
+    paths, labels = dataset.next_batch(3)
+    print(paths, labels)
+
+
+# test()

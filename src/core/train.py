@@ -8,9 +8,8 @@
 import os
 import numpy as np
 import tensorflow as tf
-import ops.lenet5 as network
+import ops.inception_v3 as network
 from data.dataset import TextDataSet, load_data
-
 
 tf.app.flags.DEFINE_float('margin', 0.3, "*margin.")
 # 务必为3的倍数: 每次抽取30个字进行
@@ -30,12 +29,13 @@ FLAGS = tf.app.flags.FLAGS
 def train():
     dataset = TextDataSet(FLAGS.dest)
     episodes = dataset.dataset_size // FLAGS.batch_size
-    inputs = tf.placeholder(tf.float32, [FLAGS.examples_num,
-                                         network.IMAGE_SIZE,
-                                         network.IMAGE_SIZE,
-                                         network.NUM_CHANNELS], name='inputs')
-    regularizer = tf.contrib.layers.l2_regularizer(FLAGS.regularization_rate)
-    prelogits = network.inference(inputs, is_training=True, regularizer=regularizer)
+
+    image_placeholder = tf.placeholder(tf.float32, [FLAGS.examples_num,
+                                                    network.IMAGE_SIZE,
+                                                    network.IMAGE_SIZE,
+                                                    network.NUM_CHANNELS], name='image_placeholder')
+    # regularizer = tf.contrib.layers.l2_regularizer(FLAGS.regularization_rate)
+    prelogits, _ = network.inference(image_placeholder)
     embeddings = tf.nn.l2_normalize(prelogits, 1, 1e-10, name='embeddings')
     anchor, positive, negative = tf.unstack(tf.reshape(embeddings, [-1, 3, FLAGS.embeddings_size]), 3, 1)
 
@@ -60,10 +60,9 @@ def train():
     with tf.control_dependencies([apply_gradient_op, variable_averages_op]):
         train_op = tf.no_op(name='train')
 
-    emb_array = np.zeros((dataset.dataset_size, FLAGS.examples_num))
     saver = tf.train.Saver()
     with tf.Session() as sess:
-        tf.initialize_all_variables().run()
+        sess.run(tf.global_variables_initializer())
         model_path = os.path.join(FLAGS.model_save_path, 'checkpoint')
         if os.path.exists(model_path):
             ckpt = tf.train.get_checkpoint_state(FLAGS.model_save_path)
@@ -72,18 +71,49 @@ def train():
                 print("Checkpoint File Exists.")
                 quit()
         for step in range(episodes):
-            ds, dirs, labels = dataset.next_batch(FLAGS.batch_size)
-            skip = len(dirs) // len(ds)
-            cur = 0
-            for dt in dirs:
-                label = labels[cur // skip]
-                batch = load_data(dt)
-                data = np.reshape(batch, (FLAGS.examples_num, network.IMAGE_SIZE, network.IMAGE_SIZE, network.NUM_CHANNELS))
-                embs, _, loss_val, step = sess.run([embeddings, train_op, total_loss, global_step],
-                                                   feed_dict={inputs: data})
-                print("label =", label, "emb = ", embs, "step = ", step, "loss = ", loss_val)
-                cur += 1
-            saver.save(sess, model_path, global_step=global_step)
+            imgs, paths, labels = dataset.next_batch(FLAGS.batch_size)
+            train_operation(sess, global_step, imgs, paths, labels, image_placeholder, train_op, embeddings, total_loss)
+        # saver.save(sess, model_path, global_step=global_step)
+
+
+def train_operation(sess, global_step, imgs, paths, labels, image_placeholder, train_op, embeddings, total_loss):
+    np.random.shuffle(imgs)
+    emb_array = np.zeros((len(imgs) * len(imgs[0]), FLAGS.embeddings_size))
+    for idx in range(len(imgs)):
+        batch = load_data(imgs[idx])
+        data = np.reshape(batch, (FLAGS.examples_num, network.IMAGE_SIZE,
+                                  network.IMAGE_SIZE, network.NUM_CHANNELS))
+        emb = sess.run([embeddings], feed_dict={image_placeholder: data})
+        emb_array[idx * 3, :] = emb[0][0]
+        emb_array[idx * 3 + 1, :] = emb[0][1]
+        emb_array[idx * 3 + 2, :] = emb[0][2]
+    triplets = select_triplets(emb_array, paths, FLAGS.margin)
+    for triplet in triplets:
+        batch = load_data(triplet)
+        data = np.reshape(batch, (FLAGS.examples_num, network.IMAGE_SIZE,
+                                  network.IMAGE_SIZE, network.NUM_CHANNELS))
+        loss, _, emb, step = sess.run([total_loss, train_op, embeddings, global_step],
+                                      feed_dict={image_placeholder: data})
+        print("After {} step: loss={}".format(step, loss))
+
+
+def select_triplets(emb_array, image_paths, alpha, sample_num=3):
+    triplets = []
+    for idx in range(0, emb_array.shape[0], 3):
+        for i in range(sample_num):
+            a_idx = idx + i
+            total_dists = np.sum(np.square(emb_array[a_idx] - emb_array), 1)
+            for j in range(i + 1, sample_num):
+                p_idx = idx + j
+                pos_dist = np.sum(np.square(emb_array[a_idx] - emb_array[p_idx]))
+                total_dists[idx:idx + sample_num] = np.NaN
+                all_neg = np.where(total_dists - pos_dist < alpha)[0]
+                rnd_negs = all_neg.shape[0]
+                if rnd_negs > 0:
+                    rnd_idx = np.random.randint(rnd_negs)
+                    n_idx = all_neg[rnd_idx]
+                    triplets.append([image_paths[a_idx], image_paths[p_idx], image_paths[n_idx]])
+    return triplets
 
 
 def main(argv=None):
@@ -92,4 +122,3 @@ def main(argv=None):
 
 if __name__ == '__main__':
     tf.app.run()
-
