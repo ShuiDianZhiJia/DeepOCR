@@ -599,8 +599,8 @@ def inference(images, weight_decay=0.0, reuse=None):
         # force in-place updates of mean and variance estimates
         'updates_collections': None,
         # Moving averages ends up in the trainable variables collection
-        'variables_collections': [ tf.GraphKeys.TRAINABLE_VARIABLES ],
-}
+        'variables_collections': [tf.GraphKeys.TRAINABLE_VARIABLES],
+    }
     with slim.arg_scope([slim.conv2d, slim.fully_connected],
                         weights_initializer=tf.truncated_normal_initializer(stddev=0.1),
                         weights_regularizer=slim.l2_regularizer(weight_decay),

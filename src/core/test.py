@@ -156,8 +156,15 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
-    arr = np.array([[1, 2, 3],
-              [0, 1, 4],
-              [6, 5, 8]])
-    print(arr[1, :])
+    arr1 = np.array([5, 7])
+    arr2 = np.array([[0, 1],
+                     [1, 2],
+                     [1, 2]])
+
+    n = np.array([arr1 for i in range(arr2.shape[0])])
+    n[1, :] = [3, 1]
+    print(n)
+    # dist = np.sqrt(np.sum(np.square(np.subtract(arr1, arr2)), axis=1))
+    # print(np.where(dist == np.min(dist))[0])
+
+

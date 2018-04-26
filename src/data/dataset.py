@@ -98,10 +98,20 @@ def transform(dirs, tmp_dirs):
     return rs
 
 
+def load_embs_data(path):
+    dirs, files = list_files(path)
+    return [x for x in files if '0' in x], [x[-1] for x in dirs[1:]]
+
+
 def test():
     dataset = TextDataSet('./data')
-    paths, labels = dataset.next_batch(3)
+    paths, labels, _ = dataset.next_batch(3)
     print(paths, labels)
 
 
 # test()
+def main():
+    files, labels = load_embs_data('../core/data')
+    print(files, labels)
+
+# main()
