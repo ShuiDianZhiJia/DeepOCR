@@ -24,7 +24,7 @@ def encode_img(path, tmp='./tmp'):
         print(path + " is None!")
         exit(0)
     img.astype(np.float32)
-    img = cv2.resize(img, (48, 48))
+    img = cv2.resize(img, (35, 35))
     ret, thresh = cv2.threshold(img, 155, 255, cv2.THRESH_BINARY)
     return thresh
     # local = path.split('\\')[-1]

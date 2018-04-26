@@ -20,9 +20,9 @@ Unicode范围:
 RANGE_LIST = [(0x4e00, 0x9FA6), (0x30, 0x3a), (0x61, 0x7b), (0x41, 0x5b)]
 CH_SIZE = 20902
 MODE = 'RGB'
-IMG_SIZE = (48, 48)
+IMG_SIZE = (35, 35)
 COLOR = (255, 255, 255)
-FONT_SIZE = 40
+FONT_SIZE = 28
 DIR_NAME = 'text_data'
 
 
@@ -31,9 +31,9 @@ def create_img(txt, name=None, font='simsun.ttc', dest='.'):
     draw = ImageDraw.Draw(img)
     cur_font_size = FONT_SIZE
     if name in '12':
-        cur_font_size = 34
+        cur_font_size = 27
     font = ImageFont.truetype(os.path.join("fonts", font), cur_font_size)
-    draw.text((4, 4), txt, font=font, fill="#000000")
+    draw.text((2, 2), txt, font=font, fill="#000000")
     img.save("{}/{}.png".format(dest, name))
 
 
@@ -66,7 +66,7 @@ def gen_ch_txt(dest='.'):
           '\nFinished!')
 
 
-def show_img(txt, dest='.'):
+def show_img(txt, dest='../../resources/train_data'):
     dest = os.path.join(dest, DIR_NAME, txt + '.png')
     img = Image.open(dest)
     img.show()

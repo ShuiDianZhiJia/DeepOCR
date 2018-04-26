@@ -8,8 +8,8 @@
 import tensorflow as tf
 
 # 48 x 48
-INPUT_NODE = 2304
-IMAGE_SIZE = 48
+INPUT_NODE = 1225
+IMAGE_SIZE = 35
 NUM_CHANNELS = 1
 
 # 第一层卷积层
@@ -27,7 +27,7 @@ def inference(inputs, is_training, regularizer=None):
     with tf.variable_scope('layer1-conv1', reuse=tf.AUTO_REUSE):
         weight_1 = tf.get_variable('weights', [CONV1_SIZE, CONV1_SIZE, NUM_CHANNELS, CONV1_DEEP],
                                    initializer=tf.truncated_normal_initializer(stddev=0.1))
-        bias_1 = tf.get_variable('biases', [CONV1_DEEP], initializer=tf.constant_initializer(0.0))
+        bias_1 = tf.get_variable('biases', [CONV1_DEEP], initializer=tf.constant_initializer(0.1))
         conv1 = tf.nn.conv2d(inputs, weight_1, strides=[1, 1, 1, 1], padding='SAME', name='conv1')
         relu1 = tf.nn.relu(tf.nn.bias_add(conv1, bias_1))
     # 第二层最大池化层 输出: 24x24x32
@@ -52,21 +52,11 @@ def inference(inputs, is_training, regularizer=None):
         fc1_weight = tf.get_variable('weights', [nodes, FC_SIZE],
                                      initializer=tf.truncated_normal_initializer(stddev=0.1))
         fc1_bias = tf.get_variable('biases', [FC_SIZE], initializer=tf.constant_initializer(0.1))
-        fc1 = tf.nn.relu(tf.matmul(reshaped, fc1_weight) + fc1_bias)
+        logit = tf.nn.relu(tf.matmul(reshaped, fc1_weight) + fc1_bias)
         if regularizer:
             tf.add_to_collection('losses', regularizer(fc1_weight))
         if is_training:
-            fc1 = tf.nn.dropout(fc1, keep_prob=0.5, name='drop1')
-        # 批标准化
-        # fc1 = tf.layers.batch_normalization(fc1, name='bn1')
-    # 第六层全连接层
-    with tf.variable_scope('layer6-fc2', reuse=tf.AUTO_REUSE):
-        fc2_weight = tf.get_variable('weights', [FC_SIZE, NUM_CHANNELS],
-                                     initializer=tf.truncated_normal_initializer(stddev=0.1))
-        fc2_bias = tf.get_variable('biases', [FC_SIZE], initializer=tf.constant_initializer(0.1))
-        if regularizer:
-            tf.add_to_collection('losses', regularizer(fc2_weight))
-        logit = tf.matmul(fc1, fc2_weight) + fc2_bias
+            logit = tf.nn.dropout(logit, keep_prob=0.8, name='drop1')
     return logit
 
 

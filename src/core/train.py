@@ -34,8 +34,9 @@ def train():
                                                     network.IMAGE_SIZE,
                                                     network.IMAGE_SIZE,
                                                     network.NUM_CHANNELS], name='image_placeholder')
-    # regularizer = tf.contrib.layers.l2_regularizer(FLAGS.regularization_rate)
+    regularizer = tf.contrib.layers.l2_regularizer(FLAGS.regularization_rate)
     prelogits, _ = network.inference(image_placeholder)
+    # prelogits = network.inference(image_placeholder, is_training=True, regularizer=regularizer)
     embeddings = tf.nn.l2_normalize(prelogits, 1, 1e-10, name='embeddings')
     anchor, positive, negative = tf.unstack(tf.reshape(embeddings, [-1, 3, FLAGS.embeddings_size]), 3, 1)
 
@@ -45,12 +46,13 @@ def train():
     variable_averages_op = variable_averages.apply(tf.trainable_variables())
     learning_rate = tf.train.exponential_decay(FLAGS.learning_rate_base, global_step, episodes,
                                                FLAGS.learning_rate_decay)
-    tf.summary.scalar('learning_rate', learning_rate)
+    tf.summary.scalar('image_placeholder', image_placeholder)
 
     # 计算loss
     triplet_loss = network.triplet_loss(anchor, positive, negative, FLAGS.margin)
     regularization_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
     total_loss = tf.add_n([triplet_loss] + regularization_losses, name='total_loss')
+    tf.summary.scalar('total_loss', total_loss)
 
     # 计算梯度
     opt = tf.train.AdagradOptimizer(learning_rate)
@@ -61,7 +63,10 @@ def train():
         train_op = tf.no_op(name='train')
 
     saver = tf.train.Saver()
+    summary_op = tf.summary.merge_all()
+
     with tf.Session() as sess:
+        summary_writer = tf.summary.FileWriter('./tmp/views/', sess.graph)
         sess.run(tf.global_variables_initializer())
         model_path = os.path.join(FLAGS.model_save_path, 'checkpoint')
         if os.path.exists(model_path):
@@ -72,11 +77,11 @@ def train():
                 quit()
         for step in range(episodes):
             imgs, paths, labels = dataset.next_batch(FLAGS.batch_size)
-            train_operation(sess, global_step, imgs, paths, labels, image_placeholder, train_op, embeddings, total_loss)
+            train_operation(sess, summary_writer, global_step, imgs, paths, labels, image_placeholder, train_op, embeddings, total_loss)
         # saver.save(sess, model_path, global_step=global_step)
 
 
-def train_operation(sess, global_step, imgs, paths, labels, image_placeholder, train_op, embeddings, total_loss):
+def train_operation(sess, summary_writer, global_step, imgs, paths, labels, image_placeholder, train_op, embeddings, total_loss):
     np.random.shuffle(imgs)
     emb_array = np.zeros((len(imgs) * len(imgs[0]), FLAGS.embeddings_size))
     for idx in range(len(imgs)):
@@ -88,6 +93,7 @@ def train_operation(sess, global_step, imgs, paths, labels, image_placeholder, t
         emb_array[idx * 3 + 1, :] = emb[0][1]
         emb_array[idx * 3 + 2, :] = emb[0][2]
     triplets = select_triplets(emb_array, paths, FLAGS.margin)
+    summary = tf.Summary()
     for triplet in triplets:
         batch = load_data(triplet)
         data = np.reshape(batch, (FLAGS.examples_num, network.IMAGE_SIZE,
@@ -95,6 +101,8 @@ def train_operation(sess, global_step, imgs, paths, labels, image_placeholder, t
         loss, _, emb, step = sess.run([total_loss, train_op, embeddings, global_step],
                                       feed_dict={image_placeholder: data})
         print("After {} step: loss={}".format(step, loss))
+        summary.value.add(tag='loss', simple_value=loss)
+        summary_writer.add_summary(summary, step)
 
 
 def select_triplets(emb_array, image_paths, alpha, sample_num=3):
@@ -114,6 +122,16 @@ def select_triplets(emb_array, image_paths, alpha, sample_num=3):
                     n_idx = all_neg[rnd_idx]
                     triplets.append([image_paths[a_idx], image_paths[p_idx], image_paths[n_idx]])
     return triplets
+
+
+def test():
+    data = np.random.rand(35 * 35 * 3).astype(np.float32).reshape((3, 35, 35, 1))
+    import ops.inception_v3 as inception_v3
+    rs = inception_v3.inference(data)
+
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        print(sess.run(rs))
 
 
 def main(argv=None):
