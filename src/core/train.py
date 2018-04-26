@@ -37,7 +37,7 @@ def train():
     # regularizer = tf.contrib.layers.l2_regularizer(FLAGS.regularization_rate)
     # prelogits = network.inference(image_placeholder, is_training=True, regularizer=regularizer)
 
-    prelogits, _ = network.inference(image_placeholder)
+    prelogits, _ = network.inference(image_placeholder, is_training=False)
     embeddings = tf.nn.l2_normalize(prelogits, 1, 1e-10, name='embeddings')
     anchor, positive, negative = tf.unstack(tf.reshape(embeddings, [-1, 3, FLAGS.embeddings_size]), 3, 1)
 
@@ -83,7 +83,7 @@ def train():
                                               network.IMAGE_SIZE, network.NUM_CHANNELS))
                     embs = sess.run(embeddings, feed_dict={image_placeholder: data})
                     emb_array[idx, :], emb_array[idx + 1, :], emb_array[idx + 2, :] = embs[0, :], embs[1, :], embs[2, :]
-                batch = load_data(['./data/侒/2.png', './data/安/0.png', './data/安/0.png'])
+                batch = load_data(['./data/安/2.png', './data/安/0.png', './data/安/0.png'])
                 data = np.reshape(batch, (FLAGS.examples_num, network.IMAGE_SIZE,
                                           network.IMAGE_SIZE, network.NUM_CHANNELS))
                 embs = sess.run(embeddings, feed_dict={image_placeholder: data})

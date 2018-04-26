@@ -590,7 +590,7 @@ def inception_v3_arg_scope(weight_decay=0.00004,
             return sc
 
 
-def inference(images, weight_decay=0.0, reuse=None):
+def inference(images, weight_decay=0.0, is_training=True, reuse=None):
     batch_norm_params = {
         # Decay for the moving averages.
         'decay': 0.995,
@@ -606,7 +606,7 @@ def inference(images, weight_decay=0.0, reuse=None):
                         weights_regularizer=slim.l2_regularizer(weight_decay),
                         normalizer_fn=slim.batch_norm,
                         normalizer_params=batch_norm_params):
-        return inception_v3(images, reuse=reuse)
+        return inception_v3(images, is_training=is_training, reuse=reuse)
 
 
 def triplet_loss(anchor, positive, negative, alpha):
